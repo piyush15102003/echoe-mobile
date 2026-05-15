@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/storage/secure_storage.dart';
@@ -24,7 +25,10 @@ class VoiceScreen extends ConsumerWidget {
                 'Which voice feels right?',
                 style: textTheme.headlineLarge,
                 textAlign: TextAlign.center,
-              ),
+              )
+                  .animate()
+                  .fadeIn(duration: 400.ms)
+                  .slideY(begin: 0.08, end: 0, duration: 400.ms, curve: Curves.easeOut),
               const SizedBox(height: 64),
               Row(
                 children: [
@@ -50,7 +54,10 @@ class VoiceScreen extends ConsumerWidget {
                     ),
                   ),
                 ],
-              ),
+              )
+                  .animate()
+                  .fadeIn(duration: 400.ms, delay: 100.ms)
+                  .slideY(begin: 0.08, end: 0, duration: 400.ms, delay: 100.ms, curve: Curves.easeOut),
               const SizedBox(height: 64),
               SizedBox(
                 width: double.infinity,
@@ -61,7 +68,10 @@ class VoiceScreen extends ConsumerWidget {
                   },
                   child: const Text('Continue'),
                 ),
-              ),
+              )
+                  .animate()
+                  .fadeIn(duration: 400.ms, delay: 200.ms)
+                  .slideY(begin: 0.08, end: 0, duration: 400.ms, delay: 200.ms, curve: Curves.easeOut),
             ],
           ),
         ),

@@ -49,4 +49,20 @@ class SessionRepository {
     final response = await _dio.post(ApiConstants.sessionEnd(sessionId));
     return response.data;
   }
+
+  Future<void> pauseSession(String sessionId) async {
+    await _dio.post(ApiConstants.sessionPause(sessionId));
+  }
+
+  Future<Map<String, dynamic>> resumeSession(String sessionId) async {
+    final response = await _dio.post(ApiConstants.sessionResume(sessionId));
+    return response.data;
+  }
+
+  /// Returns active/paused session info, or null if none.
+  Future<Map<String, dynamic>?> getActiveSession() async {
+    final response = await _dio.get(ApiConstants.activeSession);
+    if (response.statusCode == 204 || response.data == null) return null;
+    return response.data;
+  }
 }

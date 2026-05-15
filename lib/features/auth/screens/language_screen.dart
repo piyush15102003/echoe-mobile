@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/storage/secure_storage.dart';
@@ -23,17 +24,26 @@ class LanguageScreen extends ConsumerWidget {
                 'Choose your language.',
                 style: textTheme.headlineLarge,
                 textAlign: TextAlign.center,
-              ),
+              )
+                  .animate()
+                  .fadeIn(duration: 400.ms)
+                  .slideY(begin: 0.08, end: 0, duration: 400.ms, curve: Curves.easeOut),
               const SizedBox(height: 64),
               _LanguagePill(
                 label: 'English',
                 onTap: () => _select(context, ref, 'en'),
-              ),
+              )
+                  .animate()
+                  .fadeIn(duration: 400.ms, delay: 100.ms)
+                  .slideY(begin: 0.08, end: 0, duration: 400.ms, delay: 100.ms, curve: Curves.easeOut),
               const SizedBox(height: 16),
               _LanguagePill(
-                label: 'हिन्दी',
+                label: '\u0939\u093F\u0928\u094D\u0926\u0940',
                 onTap: () => _select(context, ref, 'hi'),
-              ),
+              )
+                  .animate()
+                  .fadeIn(duration: 400.ms, delay: 200.ms)
+                  .slideY(begin: 0.08, end: 0, duration: 400.ms, delay: 200.ms, curve: Curves.easeOut),
               const SizedBox(height: 32),
               TextButton(
                 onPressed: () => _select(context, ref, 'en'),
@@ -43,7 +53,9 @@ class LanguageScreen extends ConsumerWidget {
                     color: AppColors.onSurfaceVariant,
                   ),
                 ),
-              ),
+              )
+                  .animate()
+                  .fadeIn(duration: 400.ms, delay: 300.ms),
             ],
           ),
         ),

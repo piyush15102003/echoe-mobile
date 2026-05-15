@@ -27,12 +27,17 @@ dependencies:
   local_auth: ^2.3.0
 
   # Audio
-  record: ^5.2.1
+  record: ^6.2.0
   just_audio: ^0.9.43
+  path_provider: ^2.1.5
 
   # UI
   google_fonts: ^6.2.1
   material_symbols_icons: ^4.2815.0
+  flutter_animate: ^4.5.2
+
+  # Crypto
+  dbcrypt: ^2.0.0
 
   # Utilities
   uuid: ^4.5.1

@@ -7,7 +7,7 @@ final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
     baseUrl: ApiConstants.baseUrl,
     connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 30),
+    receiveTimeout: const Duration(seconds: 120),
     headers: {'Content-Type': 'application/json'},
   ));
 
@@ -39,7 +39,20 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode == 401 && !_isRefreshing) {
+    final statusCode = err.response?.statusCode;
+    if ((statusCode == 401 || statusCode == 403) && !_isRefreshing) {
+      // Check if this is a PIN-specific auth error (not an expired token).
+      // The JWT filter rejects expired tokens before the request reaches the
+      // controller, so an expired-token 401 will never contain "Invalid PIN"
+      // or "No PIN set" in the body.
+      final data = err.response?.data;
+      if (data is Map) {
+        final detail = data['detail']?.toString() ?? '';
+        if (detail.contains('Invalid PIN') || detail.contains('No PIN set')) {
+          return handler.next(err);
+        }
+      }
+
       _isRefreshing = true;
       try {
         final refreshToken = await SecureStorage.getRefreshToken();

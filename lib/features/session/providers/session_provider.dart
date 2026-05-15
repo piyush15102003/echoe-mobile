@@ -35,4 +35,11 @@ class ChatMessagesNotifier extends StateNotifier<List<ChatMessage>> {
   void clear() {
     state = [];
   }
+
+  void loadMessages(List<Map<String, dynamic>> messages) {
+    state = messages.map((m) => ChatMessage(
+      role: m['role'] as String,
+      content: m['content'] as String,
+    )).toList();
+  }
 }

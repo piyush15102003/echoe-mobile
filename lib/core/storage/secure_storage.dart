@@ -11,6 +11,7 @@ class SecureStorage {
   static const _onboardingCompleteKey = 'onboarding_complete';
   static const _languageKey = 'preferred_language';
   static const _voiceKey = 'voice_preference';
+  static const _pinHashKey = 'pin_hash';
 
   // Tokens
   static Future<void> saveTokens({
@@ -68,6 +69,17 @@ class SecureStorage {
 
   static Future<String?> getVoicePreference() =>
       _storage.read(key: _voiceKey);
+
+  // PIN hash (offline fallback)
+  static Future<void> savePinHash(String hash) =>
+      _storage.write(key: _pinHashKey, value: hash);
+
+  static Future<String?> getPinHash() => _storage.read(key: _pinHashKey);
+
+  static Future<bool> hasPinSet() async {
+    final val = await _storage.read(key: _pinHashKey);
+    return val != null && val.isNotEmpty;
+  }
 
   // Wipe
   static Future<void> clearAll() => _storage.deleteAll();

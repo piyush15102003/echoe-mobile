@@ -4,37 +4,143 @@ import '../../features/auth/screens/language_screen.dart';
 import '../../features/auth/screens/voice_screen.dart';
 import '../../features/auth/screens/biometric_screen.dart';
 import '../../features/auth/screens/pin_setup_screen.dart';
+import '../../features/auth/screens/lock_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/session/screens/conversation_screen.dart';
 import '../../features/session/screens/summary_screen.dart';
 import '../../features/breathing/screens/breathing_screen.dart';
 import '../../features/history/screens/history_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
+import '../../features/vault/screens/vault_detail_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
-GoRouter createRouter(String initialLocation) {
+/// Fade transition for bottom nav tabs
+CustomTransitionPage<void> _fadeTransitionPage({
+  required Widget child,
+  required GoRouterState state,
+}) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(
+        opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+        child: child,
+      );
+    },
+    transitionDuration: const Duration(milliseconds: 300),
+  );
+}
+
+/// Slide-up transition for full-screen routes
+CustomTransitionPage<void> _slideUpTransitionPage({
+  required Widget child,
+  required GoRouterState state,
+}) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.15),
+          end: Offset.zero,
+        ).animate(curved),
+        child: FadeTransition(opacity: curved, child: child),
+      );
+    },
+    transitionDuration: const Duration(milliseconds: 300),
+  );
+}
+
+/// Fade-through transition for onboarding
+CustomTransitionPage<void> _fadeThroughTransitionPage({
+  required Widget child,
+  required GoRouterState state,
+}) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(
+        opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+        child: ScaleTransition(
+          scale: Tween<double>(begin: 0.95, end: 1.0).animate(
+            CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          ),
+          child: child,
+        ),
+      );
+    },
+    transitionDuration: const Duration(milliseconds: 350),
+  );
+}
+
+GoRouter createRouter(
+  String initialLocation, {
+  required ValueNotifier<bool> unlockNotifier,
+}) {
   return GoRouter(
     initialLocation: initialLocation,
     navigatorKey: _rootNavigatorKey,
+    refreshListenable: unlockNotifier,
+    redirect: (context, state) {
+      final isUnlocked = unlockNotifier.value;
+      final onLock = state.matchedLocation == '/lock';
+      final onOnboarding = state.matchedLocation.startsWith('/onboarding');
+
+      // Don't interfere with onboarding
+      if (onOnboarding) return null;
+
+      // Locked but not on lock screen → redirect to lock
+      if (!isUnlocked && !onLock) return '/lock';
+
+      // Unlocked but still on lock screen → redirect to home
+      if (isUnlocked && onLock) return '/home';
+
+      return null;
+    },
     routes: [
-      // Onboarding
+      // Lock screen
+      GoRoute(
+        path: '/lock',
+        pageBuilder: (_, state) => _fadeThroughTransitionPage(
+          child: const LockScreen(),
+          state: state,
+        ),
+      ),
+
+      // Onboarding — fade-through transitions
       GoRoute(
         path: '/onboarding/language',
-        builder: (_, _) => const LanguageScreen(),
+        pageBuilder: (_, state) => _fadeThroughTransitionPage(
+          child: const LanguageScreen(),
+          state: state,
+        ),
       ),
       GoRoute(
         path: '/onboarding/voice',
-        builder: (_, _) => const VoiceScreen(),
+        pageBuilder: (_, state) => _fadeThroughTransitionPage(
+          child: const VoiceScreen(),
+          state: state,
+        ),
       ),
       GoRoute(
         path: '/onboarding/biometric',
-        builder: (_, _) => const BiometricScreen(),
+        pageBuilder: (_, state) => _fadeThroughTransitionPage(
+          child: const BiometricScreen(),
+          state: state,
+        ),
       ),
       GoRoute(
         path: '/onboarding/pin',
-        builder: (_, _) => const PinSetupScreen(),
+        pageBuilder: (_, state) => _fadeThroughTransitionPage(
+          child: const PinSetupScreen(),
+          state: state,
+        ),
       ),
 
       // Main app with bottom nav
@@ -46,44 +152,66 @@ GoRouter createRouter(String initialLocation) {
         routes: [
           GoRoute(
             path: '/home',
-            pageBuilder: (_, _) => const NoTransitionPage(
-              child: HomeScreen(),
+            pageBuilder: (_, state) => _fadeTransitionPage(
+              child: const HomeScreen(),
+              state: state,
             ),
           ),
           GoRoute(
             path: '/history',
-            pageBuilder: (_, _) => const NoTransitionPage(
-              child: HistoryScreen(),
+            pageBuilder: (_, state) => _fadeTransitionPage(
+              child: const HistoryScreen(),
+              state: state,
             ),
           ),
           GoRoute(
             path: '/breathing',
-            pageBuilder: (_, _) => const NoTransitionPage(
-              child: BreathingScreen(),
+            pageBuilder: (_, state) => _fadeTransitionPage(
+              child: const BreathingScreen(),
+              state: state,
             ),
           ),
         ],
       ),
 
-      // Full-screen routes (no bottom nav)
+      // Full-screen routes — slide-up transitions
       GoRoute(
         path: '/session/:sessionId',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final sessionId = state.pathParameters['sessionId']!;
           final mode = state.uri.queryParameters['mode'] ?? 'text';
-          return ConversationScreen(sessionId: sessionId, mode: mode);
+          return _slideUpTransitionPage(
+            child: ConversationScreen(sessionId: sessionId, mode: mode),
+            state: state,
+          );
         },
       ),
       GoRoute(
         path: '/summary',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final data = state.extra as Map<String, dynamic>?;
-          return SummaryScreen(sessionData: data);
+          return _slideUpTransitionPage(
+            child: SummaryScreen(sessionData: data),
+            state: state,
+          );
         },
       ),
       GoRoute(
         path: '/settings',
-        builder: (_, _) => const SettingsScreen(),
+        pageBuilder: (_, state) => _slideUpTransitionPage(
+          child: const SettingsScreen(),
+          state: state,
+        ),
+      ),
+      GoRoute(
+        path: '/vault/detail/:sessionId',
+        pageBuilder: (context, state) {
+          final sessionId = state.pathParameters['sessionId']!;
+          return _slideUpTransitionPage(
+            child: VaultDetailScreen(sessionId: sessionId),
+            state: state,
+          );
+        },
       ),
     ],
   );

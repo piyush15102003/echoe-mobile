@@ -31,4 +31,30 @@ class AuthRepository {
 
     return data;
   }
+
+  /// Register or update the user's PIN on the backend.
+  Future<void> setPin(String pin) async {
+    await _dio.post(
+      ApiConstants.authSetPin,
+      data: {'pin': pin},
+    );
+  }
+
+  /// Verify PIN against the backend.
+  /// Returns `{success: bool, attempts_left: int?, locked_until: String?}`.
+  Future<Map<String, dynamic>> verifyPin(String pin) async {
+    final response = await _dio.post(
+      ApiConstants.authVerifyPin,
+      data: {'pin': pin},
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Wipe the user's account after PIN verification.
+  Future<void> wipeAccount(String pin) async {
+    await _dio.delete(
+      ApiConstants.authWipe,
+      data: {'pin': pin},
+    );
+  }
 }

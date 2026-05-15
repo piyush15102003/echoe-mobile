@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/breathing_orb.dart';
@@ -90,37 +91,52 @@ class _BreathingScreenState extends State<BreathingScreen> {
                 const SizedBox(height: 48),
                 const BreathingOrb(size: 250),
                 const SizedBox(height: 32),
-                Text(
-                  _cueText,
-                  style: GoogleFonts.notoSerif(
-                    fontSize: 20,
-                    height: 1.5,
-                    color: AppColors.onSurfaceVariant,
+                // Cue text with crossfade
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 400),
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeIn,
+                  child: Text(
+                    _cueText,
+                    key: ValueKey(_cueText),
+                    style: GoogleFonts.notoSerif(
+                      fontSize: 20,
+                      height: 1.5,
+                      color: AppColors.onSurfaceVariant,
+                    ),
                   ),
                 ),
                 if (_isActive) ...[
                   const SizedBox(height: 16),
-                  Text(
-                    _formatTime(_secondsRemaining),
-                    style: GoogleFonts.inter(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w300,
-                      color: AppColors.onSurface,
+                  // Timer with crossfade
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: Text(
+                      _formatTime(_secondsRemaining),
+                      key: ValueKey(_secondsRemaining),
+                      style: GoogleFonts.inter(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w300,
+                        color: AppColors.onSurface,
+                      ),
                     ),
                   ),
                 ],
                 const SizedBox(height: 48),
                 if (!_isActive) ...[
-                  // Duration picker
+                  // Duration picker — staggered entry
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: [3, 5, 10].map((m) {
+                    children: [3, 5, 10].asMap().entries.map((entry) {
+                      final m = entry.value;
+                      final i = entry.key;
                       final selected = _selectedMinutes == m;
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 6),
                         child: ChoiceChip(
                           label: Text('$m min'),
                           selected: selected,
+                          showCheckmark: false,
                           selectedColor: AppColors.primaryContainer,
                           backgroundColor: AppColors.surfaceContainerLow,
                           labelStyle: TextStyle(
@@ -131,7 +147,19 @@ class _BreathingScreenState extends State<BreathingScreen> {
                           onSelected: (_) =>
                               setState(() => _selectedMinutes = m),
                         ),
-                      );
+                      )
+                          .animate()
+                          .fadeIn(
+                            duration: 300.ms,
+                            delay: Duration(milliseconds: 100 + i * 80),
+                          )
+                          .slideY(
+                            begin: 0.2,
+                            end: 0,
+                            duration: 300.ms,
+                            delay: Duration(milliseconds: 100 + i * 80),
+                            curve: Curves.easeOut,
+                          );
                     }).toList(),
                   ),
                   const SizedBox(height: 32),
