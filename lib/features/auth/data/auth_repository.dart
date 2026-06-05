@@ -57,4 +57,26 @@ class AuthRepository {
       data: {'pin': pin},
     );
   }
+
+  /// Force-wipe the account without PIN (used when user forgot PIN and has no biometric).
+  /// Requires a valid JWT — the token interceptor handles refresh automatically.
+  Future<void> wipeForce() async {
+    await _dio.delete(ApiConstants.authWipeForce);
+  }
+
+  /// Save or update the user's emergency contact.
+  Future<void> saveEmergencyContact({
+    required String name,
+    required String phone,
+  }) async {
+    await _dio.put(
+      ApiConstants.authEmergencyContact,
+      data: {'name': name, 'phone': phone},
+    );
+  }
+
+  /// Remove the emergency contact.
+  Future<void> deleteEmergencyContact() async {
+    await _dio.delete(ApiConstants.authEmergencyContact);
+  }
 }

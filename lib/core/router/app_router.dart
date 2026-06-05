@@ -142,6 +142,14 @@ GoRouter createRouter(
           state: state,
         ),
       ),
+      // PIN reset after forgot-PIN biometric recovery
+      GoRoute(
+        path: '/pin-reset',
+        pageBuilder: (_, state) => _fadeThroughTransitionPage(
+          child: const PinSetupScreen(resetMode: true),
+          state: state,
+        ),
+      ),
 
       // Main app with bottom nav
       ShellRoute(

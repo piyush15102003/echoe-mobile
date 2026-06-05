@@ -12,7 +12,11 @@ import '../providers/app_lock_provider.dart';
 import '../providers/auth_provider.dart';
 
 class PinSetupScreen extends ConsumerStatefulWidget {
-  const PinSetupScreen({super.key});
+  /// When [resetMode] is true, the user already has an account — we only call
+  /// setPin (no createAnonymousUser). Used in the forgot-PIN biometric recovery flow.
+  final bool resetMode;
+
+  const PinSetupScreen({super.key, this.resetMode = false});
 
   @override
   ConsumerState<PinSetupScreen> createState() => _PinSetupScreenState();
@@ -80,36 +84,38 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
     // Register with backend
     setState(() => _isLoading = true);
     try {
-      final language = ref.read(selectedLanguageProvider);
-      final voice = ref.read(selectedVoiceProvider);
+      if (widget.resetMode) {
+        // User already exists — just update the PIN
+        await ref.read(authRepositoryProvider).setPin(_pin);
+      } else {
+        // First-time setup — create the anonymous user first
+        final language = ref.read(selectedLanguageProvider);
+        final voice = ref.read(selectedVoiceProvider);
 
-      // Generate device ID
-      var deviceId = await SecureStorage.getDeviceId();
-      if (deviceId == null) {
-        deviceId = const Uuid().v4();
-        await SecureStorage.saveDeviceId(deviceId);
+        var deviceId = await SecureStorage.getDeviceId();
+        if (deviceId == null) {
+          deviceId = const Uuid().v4();
+          await SecureStorage.saveDeviceId(deviceId);
+        }
+
+        await ref.read(authRepositoryProvider).createAnonymousUser(
+              deviceId: deviceId,
+              language: language,
+              voicePreference: voice,
+            );
+        await ref.read(authRepositoryProvider).setPin(_pin);
+        await SecureStorage.setOnboardingComplete();
       }
-
-      // Create anonymous user (gets JWT tokens)
-      await ref.read(authRepositoryProvider).createAnonymousUser(
-            deviceId: deviceId,
-            language: language,
-            voicePreference: voice,
-          );
-
-      // Register PIN with backend
-      await ref.read(authRepositoryProvider).setPin(_pin);
 
       // Store bcrypt hash locally for offline fallback
       final hash = DBCrypt().hashpw(_pin, DBCrypt().gensalt());
       await SecureStorage.savePinHash(hash);
 
-      await SecureStorage.setOnboardingComplete();
-
-      // User just set up — unlock immediately for this session
       ref.read(appUnlockedProvider.notifier).state = true;
 
-      if (mounted) context.go('/home');
+      if (mounted) {
+        context.go(widget.resetMode ? '/home' : '/home');
+      }
     } catch (e) {
       setState(() {
         _error = 'Something went wrong. Please try again.';
@@ -137,8 +143,12 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
                 child: Text(
-                  _isConfirming ? 'Confirm your PIN.' : 'Set a 4-digit PIN.',
-                  key: ValueKey(_isConfirming),
+                  _isConfirming
+                      ? 'Confirm your PIN.'
+                      : widget.resetMode
+                          ? 'Set a new PIN.'
+                          : 'Set a 4-digit PIN.',
+                  key: ValueKey('${_isConfirming}_${widget.resetMode}'),
                   style: textTheme.headlineMedium,
                   textAlign: TextAlign.center,
                 ),

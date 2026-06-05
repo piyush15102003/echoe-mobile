@@ -51,6 +51,48 @@ dev_dependencies:
   riverpod_generator: ^2.6.5
   build_runner: ^2.4.15
   json_serializable: ^6.9.5
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.6
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
+
+# ── App Icon ──────────────────────────────────────────────────────────────────
+# Run: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/echoe_logo.png"
+  background_color_ios: "#FEF9F1"
+  remove_alpha_ios: true
+  # Android 13+ adaptive icon
+  adaptive_icon_background: "#FEF9F1"
+  adaptive_icon_foreground: "assets/images/echoe_logo.png"
+  # Don't generate for platforms we're not targeting
+  web:
+    generate: false
+  windows:
+    generate: false
+  macos:
+    generate: false
+
+# ── Splash Screen ─────────────────────────────────────────────────────────────
+# Run: dart run flutter_native_splash:create
+flutter_native_splash:
+  # Cream background — matches Echoe's home screen
+  color: "#FEF9F1"
+  image: assets/images/echoe_logo.png
+  # Android 12+ splash (uses windowSplashScreenAnimatedIcon)
+  android_12:
+    image: assets/images/echoe_logo.png
+    icon_background_color: "#FEF9F1"
+    color: "#FEF9F1"
+
+  # iOS — same cream background
+  ios: true
+
+  # Keep native splash until Flutter is ready
+  fullscreen: false
+  android: true

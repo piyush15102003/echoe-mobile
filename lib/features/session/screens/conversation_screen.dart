@@ -11,6 +11,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/storage/secure_storage.dart';
 import '../../../core/theme/app_colors.dart';
@@ -114,7 +115,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       // Check crisis
       if (data['crisis_detected'] == true) {
         HapticFeedback.mediumImpact();
-        _showCrisisOverlay(data['crisis_resources']);
+        _showCrisisOverlay(
+          data['crisis_resources'],
+          data['emergency_contact'] as Map<String, dynamic>?,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -192,7 +196,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         // Check crisis
         if (data['crisis_detected'] == true) {
           HapticFeedback.mediumImpact();
-          _showCrisisOverlay(data['crisis_resources']);
+          _showCrisisOverlay(
+            data['crisis_resources'],
+            data['emergency_contact'] as Map<String, dynamic>?,
+          );
         }
       } catch (e) {
         debugPrint('[Echoe] Voice error: $e');
@@ -313,7 +320,8 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     return false; // keep talking — don't pop
   }
 
-  void _showCrisisOverlay(dynamic resources) {
+  void _showCrisisOverlay(
+      dynamic resources, Map<String, dynamic>? emergencyContact) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -329,36 +337,160 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
             color: AppColors.onSurfaceVariant,
           ),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "What you're carrying right now sounds really heavy. I want to make sure you're safe.",
-              style: GoogleFonts.notoSerif(fontSize: 16, height: 1.6),
-            ),
-            const SizedBox(height: 24),
-            if (resources is List)
-              ...resources.map((r) {
-                final res = r as Map<String, dynamic>;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    '${res['name']} — ${res['phone']}',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.primary,
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "What you're carrying right now sounds really heavy. I want to make sure you're safe.",
+                style: GoogleFonts.notoSerif(fontSize: 16, height: 1.6),
+              ),
+
+              // ── Emergency contact (shown when threshold hit) ──────────
+              if (emergencyContact != null) ...[
+                const SizedBox(height: 24),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.mutedGold.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.mutedGold.withValues(alpha: 0.3),
                     ),
                   ),
-                );
-              }),
-          ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Someone who knows you is one call away.',
+                        style: GoogleFonts.notoSerif(
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic,
+                          color: AppColors.onSurfaceVariant,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        emergencyContact['name'] as String? ?? 'Your contact',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        emergencyContact['phone'] as String? ?? '',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                final phone =
+                                    emergencyContact['phone'] as String? ?? '';
+                                launchUrl(Uri.parse('tel:$phone'));
+                              },
+                              icon: const Icon(Icons.call, size: 16),
+                              label: const Text('Call'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.mutedGold,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                final phone =
+                                    emergencyContact['phone'] as String? ?? '';
+                                launchUrl(Uri.parse('sms:$phone'));
+                              },
+                              icon: const Icon(Icons.message_outlined,
+                                  size: 16),
+                              label: const Text('Text'),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                    color: AppColors.mutedGold
+                                        .withValues(alpha: 0.5)),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              // ── Professional helplines ─────────────────────────────────
+              const SizedBox(height: 24),
+              Text(
+                emergencyContact != null
+                    ? 'Professional support is also here:'
+                    : 'Trained support is available right now:',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (resources is List)
+                ...resources.map((r) {
+                  final res = r as Map<String, dynamic>;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: GestureDetector(
+                      onTap: () =>
+                          launchUrl(Uri.parse('tel:${res['phone']}')),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.phone_outlined,
+                              size: 14, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${res['name']} — ${res['phone']}',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.primary,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              const SizedBox(height: 4),
+              Text(
+                'If you are in immediate danger, call 112.',
+                style: GoogleFonts.inter(
+                    fontSize: 12, color: AppColors.onSurfaceVariant),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('I understand'),
+            child: const Text('I\'m okay for now'),
           ),
         ],
       ),

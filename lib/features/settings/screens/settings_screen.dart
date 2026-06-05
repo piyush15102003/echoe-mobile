@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/pin_dialog.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../vault/providers/vault_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -24,10 +25,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _vaultLoading = true;
   bool _biometricEnabled = false;
 
+  // Emergency contact
+  final _contactNameCtrl = TextEditingController();
+  final _contactPhoneCtrl = TextEditingController();
+  bool _contactSaving = false;
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    _contactNameCtrl.dispose();
+    _contactPhoneCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSettings() async {
@@ -139,6 +152,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
       }
     }
+  }
+
+  Future<void> _saveEmergencyContact() async {
+    final name = _contactNameCtrl.text.trim();
+    final phone = _contactPhoneCtrl.text.trim();
+    if (name.isEmpty || phone.isEmpty) return;
+
+    setState(() => _contactSaving = true);
+    try {
+      await ref.read(authRepositoryProvider).saveEmergencyContact(
+            name: name,
+            phone: phone,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Emergency contact saved.')),
+        );
+        FocusScope.of(context).unfocus();
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save contact. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _contactSaving = false);
+    }
+  }
+
+  Future<void> _removeEmergencyContact() async {
+    try {
+      await ref.read(authRepositoryProvider).deleteEmergencyContact();
+      _contactNameCtrl.clear();
+      _contactPhoneCtrl.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Contact removed.')));
+      }
+    } catch (_) {}
   }
 
   Future<void> _confirmReset() async {
@@ -315,6 +368,70 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: _changePin,
           ),
           const Divider(height: 32),
+
+          // Emergency contact
+          Text('EMERGENCY CONTACT',
+              style: textTheme.labelSmall?.copyWith(
+                color: AppColors.onSurfaceVariant,
+              ))
+              .animate()
+              .fadeIn(duration: 300.ms, delay: 150.ms),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              'If Echoe detects you\'re in crisis 3 times, it will suggest you reach out to this person.',
+              style: textTheme.bodySmall
+                  ?.copyWith(color: AppColors.onSurfaceVariant),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _contactNameCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Name',
+              hintText: 'e.g. Mom, Best friend',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            textCapitalization: TextCapitalization.words,
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _contactPhoneCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Phone number',
+              hintText: '+91 98765 43210',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            keyboardType: TextInputType.phone,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _contactSaving ? null : _saveEmergencyContact,
+                  child: _contactSaving
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Save contact'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton(
+                onPressed: _removeEmergencyContact,
+                child: const Text('Remove'),
+              ),
+            ],
+          ),
+          const Divider(height: 32),
+
           // Danger zone
           Text('DANGER ZONE',
               style: textTheme.labelSmall?.copyWith(

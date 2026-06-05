@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../shared/widgets/breathing_orb.dart';
+import '../../../shared/widgets/breathing_orb.dart'
+    show BreathingOrb, BreathingPhase;
 
 class BreathingScreen extends StatefulWidget {
   const BreathingScreen({super.key});
@@ -18,6 +19,8 @@ class _BreathingScreenState extends State<BreathingScreen> {
   int _secondsRemaining = 0;
   Timer? _timer;
   String _cueText = 'Breathe in...';
+  BreathingPhase _orbPhase = BreathingPhase.idle;
+  int _orbPhaseDuration = 4;
 
   final _phaseDurations = [4, 2, 4, 2]; // seconds per phase
   final _phaseLabels = ['Breathe in...', 'Hold.', 'Breathe out...', 'Pause.'];
@@ -36,16 +39,32 @@ class _BreathingScreenState extends State<BreathingScreen> {
       }
       setState(() {
         _secondsRemaining--;
-        // Cycle breath phases
+
+        // Determine current phase index from elapsed time
         final totalCycle = _phaseDurations.reduce((a, b) => a + b);
         final elapsed = (_selectedMinutes * 60 - _secondsRemaining) % totalCycle;
         int acc = 0;
+        int phaseIndex = 0;
         for (int i = 0; i < _phaseDurations.length; i++) {
           acc += _phaseDurations[i];
           if (elapsed < acc) {
-            _cueText = _phaseLabels[i];
+            phaseIndex = i;
             break;
           }
+        }
+        _cueText = _phaseLabels[phaseIndex];
+
+        // Map phase index → BreathingPhase for the orb
+        const phaseMap = [
+          BreathingPhase.breatheIn,
+          BreathingPhase.hold,
+          BreathingPhase.breatheOut,
+          BreathingPhase.pause,
+        ];
+        final newPhase = phaseMap[phaseIndex];
+        if (newPhase != _orbPhase) {
+          _orbPhase = newPhase;
+          _orbPhaseDuration = _phaseDurations[phaseIndex];
         }
       });
     });
@@ -56,6 +75,7 @@ class _BreathingScreenState extends State<BreathingScreen> {
     setState(() {
       _isActive = false;
       _cueText = 'Well done.';
+      _orbPhase = BreathingPhase.idle;
     });
   }
 
@@ -89,7 +109,11 @@ class _BreathingScreenState extends State<BreathingScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),
-                const BreathingOrb(size: 250),
+                BreathingOrb(
+                  size: 250,
+                  phase: _orbPhase,
+                  phaseDurationSeconds: _orbPhaseDuration,
+                ),
                 const SizedBox(height: 32),
                 // Cue text with crossfade
                 AnimatedSwitcher(

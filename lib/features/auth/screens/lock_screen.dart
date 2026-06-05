@@ -213,21 +213,21 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     final biometricEnabled = await SecureStorage.isBiometricEnabled();
 
     if (biometricEnabled) {
-      // Authenticate with biometric, then let them set a new PIN
+      // Biometric confirms identity → send to PIN reset (not home)
       final auth = LocalAuthentication();
       try {
         final success = await auth.authenticate(
-          localizedReason: 'Verify your identity to change PIN',
+          localizedReason: 'Verify your identity to set a new PIN',
           options: const AuthenticationOptions(
             biometricOnly: true,
             stickyAuth: true,
           ),
         );
         if (success && mounted) {
-          // Navigate to PIN setup to set a new PIN
+          // Unlock so the user can navigate, then immediately go to PIN reset.
+          // The PIN reset screen calls setPin (no new user created).
           ref.read(appUnlockedProvider.notifier).state = true;
-          context.go('/home');
-          // TODO: Could navigate to a Change PIN flow in settings instead
+          context.go('/pin-reset');
         }
       } catch (_) {
         if (mounted) {
@@ -256,14 +256,21 @@ class _LockScreenState extends ConsumerState<LockScreen> {
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text('Yes, reset',
-                  style: TextStyle(color: AppColors.error)),
+              child: Text('Yes, reset', style: TextStyle(color: AppColors.error)),
             ),
           ],
         ),
       );
 
       if (confirmed == true && mounted) {
+        // Best-effort backend wipe (uses stored JWT — interceptor refreshes if needed).
+        // Always clear local storage regardless of backend result.
+        try {
+          await ref.read(authRepositoryProvider).wipeForce();
+        } catch (_) {
+          // Backend unreachable or token fully expired — proceed with local wipe.
+          // The orphaned record is a UUID with no PII; acceptable for privacy model.
+        }
         await SecureStorage.clearAll();
         if (mounted) context.go('/onboarding/language');
       }

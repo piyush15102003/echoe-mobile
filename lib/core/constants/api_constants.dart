@@ -36,4 +36,14 @@ class ApiConstants {
       '/vault/sessions/$sessionId';
   static String vaultSessionDelete(String sessionId) =>
       '/vault/sessions/$sessionId';
+
+  // Daily intention
+  static const intentionToday = '/intention/today';
+  static String intentionMarkViewed(String id) => '/intention/$id/viewed';
+
+  // Force-wipe (no PIN required — used when user forgot PIN and has no biometric)
+  static const authWipeForce = '/auth/wipe/force';
+
+  // Emergency contact
+  static const authEmergencyContact = '/auth/emergency-contact';
 }
