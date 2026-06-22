@@ -1,4 +1,4 @@
-package com.example.echoe_mobile
+package com.echoe.app
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

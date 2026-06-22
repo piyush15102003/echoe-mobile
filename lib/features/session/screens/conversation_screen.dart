@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -51,12 +52,35 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     super.initState();
     _audioRecorder = AudioRecorder();
     _audioPlayer = AudioPlayer();
+    _configureAudioSession();
     _textController.addListener(() {
       final hasText = _textController.text.trim().isNotEmpty;
       if (hasText != _hasText) {
         setState(() => _hasText = hasText);
       }
     });
+  }
+
+  /// Configure audio session so Echoe's voice plays through the speaker,
+  /// not the earpiece, on both Android and iOS.
+  Future<void> _configureAudioSession() async {
+    final session = await AudioSession.instance;
+    await session.configure(const AudioSessionConfiguration(
+      avAudioSessionCategory: AVAudioSessionCategory.playback,
+      avAudioSessionCategoryOptions:
+          AVAudioSessionCategoryOptions.defaultToSpeaker,
+      avAudioSessionMode: AVAudioSessionMode.spokenAudio,
+      avAudioSessionRouteSharingPolicy:
+          AVAudioSessionRouteSharingPolicy.defaultPolicy,
+      avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
+      androidAudioAttributes: AndroidAudioAttributes(
+        contentType: AndroidAudioContentType.speech,
+        usage: AndroidAudioUsage.media,
+        flags: AndroidAudioFlags.none,
+      ),
+      androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+      androidWillPauseWhenDucked: false,
+    ));
   }
 
   @override
@@ -106,10 +130,17 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         final content =
             question.isNotEmpty ? '$reflection\n\n$question' : reflection;
 
+        // Show text immediately
         ref.read(chatMessagesProvider.notifier).addMessage(
               ChatMessage(role: 'echo', content: content),
             );
         _scrollToBottom();
+      }
+
+      // Play audio in parallel — don't await, text is already visible
+      final audioBase64 = data['audio_base64'] as String?;
+      if (audioBase64 != null && audioBase64.isNotEmpty) {
+        _playAudioBase64(audioBase64);
       }
 
       // Check crisis
@@ -183,14 +214,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
           _scrollToBottom();
         }
 
-        // Play audio response
+        // Play audio in parallel with text (already visible above)
         final audioBase64 = data['audio_base64'] as String?;
         if (audioBase64 != null && audioBase64.isNotEmpty) {
-          final responseBytes = base64Decode(audioBase64);
-          await _audioPlayer.setAudioSource(
-            _Base64AudioSource(responseBytes),
-          );
-          _audioPlayer.play();
+          _playAudioBase64(audioBase64);
         }
 
         // Check crisis
@@ -318,6 +345,23 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       return false;
     }
     return false; // keep talking — don't pop
+  }
+
+  /// Decode base64 audio, write to a temp WAV file, and play it.
+  /// Using a temp file is more reliable than StreamAudioSource across Android/iOS.
+  /// Does NOT block the UI — fire-and-forget.
+  Future<void> _playAudioBase64(String audioBase64) async {
+    try {
+      final bytes = base64Decode(audioBase64);
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/echoe_response.wav');
+      await file.writeAsBytes(bytes, flush: true);
+      await _audioPlayer.setFilePath(file.path);
+      _audioPlayer.play(); // intentionally not awaited — parallel with UI
+    } catch (e) {
+      debugPrint('[Echoe] Audio playback failed: $e');
+      // Non-fatal — text is already visible
+    }
   }
 
   void _showCrisisOverlay(
@@ -747,21 +791,3 @@ class _VoiceWaveformState extends State<_VoiceWaveform>
   }
 }
 
-class _Base64AudioSource extends StreamAudioSource {
-  final List<int> _bytes;
-
-  _Base64AudioSource(this._bytes);
-
-  @override
-  Future<StreamAudioResponse> request([int? start, int? end]) async {
-    start ??= 0;
-    end ??= _bytes.length;
-    return StreamAudioResponse(
-      sourceLength: _bytes.length,
-      contentLength: end - start,
-      offset: start,
-      stream: Stream.value(Uint8List.fromList(_bytes.sublist(start, end))),
-      contentType: 'audio/mpeg',
-    );
-  }
-}

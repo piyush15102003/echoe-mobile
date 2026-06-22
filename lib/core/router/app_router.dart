@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../network/api_client.dart';
 import '../../features/auth/screens/language_screen.dart';
 import '../../features/auth/screens/voice_screen.dart';
 import '../../features/auth/screens/biometric_screen.dart';
@@ -86,11 +87,21 @@ GoRouter createRouter(
   return GoRouter(
     initialLocation: initialLocation,
     navigatorKey: _rootNavigatorKey,
-    refreshListenable: unlockNotifier,
+    refreshListenable: Listenable.merge([unlockNotifier, AuthStateNotifier.needsReAuth]),
     redirect: (context, state) {
       final isUnlocked = unlockNotifier.value;
       final onLock = state.matchedLocation == '/lock';
       final onOnboarding = state.matchedLocation.startsWith('/onboarding');
+
+      // Auth completely broken (refresh token invalidated) — force re-onboarding
+      if (AuthStateNotifier.needsReAuth.value) {
+        if (onOnboarding) {
+          // We've arrived at onboarding — clear the flag so we don't loop
+          AuthStateNotifier.needsReAuth.value = false;
+          return null;
+        }
+        return '/onboarding/language';
+      }
 
       // Don't interfere with onboarding
       if (onOnboarding) return null;

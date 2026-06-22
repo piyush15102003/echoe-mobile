@@ -1,9 +1,16 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/api_constants.dart';
 import '../storage/secure_storage.dart';
+
+/// Signals the router to force re-onboarding when auth is completely broken
+/// (e.g. refresh token invalidated server-side after reuse detection).
+class AuthStateNotifier {
+  static final needsReAuth = ValueNotifier<bool>(false);
+}
 
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
@@ -108,6 +115,10 @@ class _AuthInterceptor extends Interceptor {
       _refreshCompleter?.completeError(e);
       _isRefreshing = false;
       _refreshCompleter = null;
+      // Refresh failed (token reuse, expired, or server error).
+      // Wipe all stored credentials and force the user through onboarding again.
+      await SecureStorage.clearAll();
+      AuthStateNotifier.needsReAuth.value = true;
       handler.next(err);
     }
   }

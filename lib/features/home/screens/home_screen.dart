@@ -357,13 +357,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           );
 
       if (context.mounted) context.push('/session/$sessionId?mode=$mode');
-    } catch (_) {
+    } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content:
-                  Text('Could not start session. Please try again.')),
-        );
+        final msg = e.toString().toLowerCase();
+        final isDailyLimit = msg.contains('daily limit') ||
+            msg.contains('429') ||
+            msg.contains('sessions per day');
+
+        if (isDailyLimit) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: AppColors.surface,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24)),
+              title: const Text("You've done enough for today."),
+              content: Text(
+                "Echoe gives you 2 sessions a day — so you take what you need and leave the rest. Come back tomorrow.",
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.onSurfaceVariant),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Okay'),
+                ),
+              ],
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Could not start session. Please try again.')),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _isStarting = false);
